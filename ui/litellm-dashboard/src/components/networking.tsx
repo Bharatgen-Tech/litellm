@@ -4686,6 +4686,7 @@ export interface ConnectFlowStatus {
   server_id: string | null;
   server_name: string | null;
   connected: boolean | null;
+  requested_scopes?: string[];
 }
 
 /**
