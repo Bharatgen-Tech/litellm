@@ -16973,6 +16973,87 @@ def test_member_budget_patch_maps_temp_budget_fields() -> None:
     }
 
 
+def test_member_budget_patch_stores_model_max_budget_as_json_and_clears_on_empty() -> None:
+    from litellm.proxy.management_endpoints.common_utils import member_budget_patch
+
+    request: Final = TeamMemberUpdateRequest(
+        team_id="team-1",
+        user_id="user-1",
+        model_max_budget={"gpt-4o": {"budget_limit": 5, "time_period": "30d"}},
+    )
+    assert member_budget_patch(request) == {"model_max_budget": {"gpt-4o": {"max_budget": 5.0, "budget_duration": "30d"}}}
+
+    cleared: Final = TeamMemberUpdateRequest(team_id="team-1", user_id="user-1", model_max_budget={})
+    assert member_budget_patch(cleared) == {"model_max_budget": {}}
+
+
+@pytest.mark.asyncio
+async def test_upsert_budget_and_membership_clears_own_model_max_budget_to_empty_json() -> None:
+    from litellm.proxy.management_endpoints.common_utils import upsert_budget_and_membership
+
+    own_row: Final = SimpleNamespace(
+        model_dump=lambda: {
+            "budget_id": "member-b",
+            "max_budget": 50.0,
+            "model_max_budget": {"gpt-4o": {"max_budget": 2.5, "budget_duration": "7d"}},
+        }
+    )
+    tx: Final = MagicMock()
+    tx.litellm_budgettable.find_unique = AsyncMock(return_value=own_row)
+    tx.litellm_budgettable.update = AsyncMock()
+    tx.litellm_teammembership.update = AsyncMock()
+
+    await upsert_budget_and_membership(
+        tx,
+        team_id="team-1",
+        user_id="user-1",
+        existing_budget_id="member-b",
+        user_api_key_dict=UserAPIKeyAuth(user_id="admin"),
+        budget_patch={"model_max_budget": None},
+        team_default_budget_id="default-b",
+    )
+
+    assert tx.litellm_budgettable.update.await_args.kwargs["data"]["model_max_budget"] == "{}"
+    tx.litellm_teammembership.update.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_upsert_budget_and_membership_clone_keeps_shared_default_model_max_budget_as_json() -> None:
+    from litellm.proxy.management_endpoints.common_utils import upsert_budget_and_membership
+
+    default_model_budget: Final = {"gpt-4o": {"max_budget": 5.0, "budget_duration": "30d"}}
+    default_row: Final = SimpleNamespace(
+        model_dump=lambda: {
+            "budget_id": "default-b",
+            "max_budget": 10.0,
+            "model_max_budget": default_model_budget,
+            "budget_reset_at": None,
+        }
+    )
+    tx: Final = MagicMock()
+    tx.litellm_budgettable.find_unique = AsyncMock(return_value=default_row)
+    tx.litellm_budgettable.create = AsyncMock(return_value=SimpleNamespace(budget_id="member-b"))
+    tx.litellm_teammembership.upsert = AsyncMock()
+
+    await upsert_budget_and_membership(
+        tx,
+        team_id="team-1",
+        user_id="user-1",
+        existing_budget_id="default-b",
+        user_api_key_dict=UserAPIKeyAuth(user_id="admin"),
+        budget_patch={"tpm_limit": 7},
+        team_default_budget_id="default-b",
+    )
+
+    create_data: Final = tx.litellm_budgettable.create.await_args.kwargs["data"]
+    assert create_data["tpm_limit"] == 7
+    assert create_data["max_budget"] == 10.0
+    assert json.loads(create_data["model_max_budget"]) == default_model_budget
+    assert tx.litellm_teammembership.upsert.await_args.kwargs["data"]["update"] == {
+        "litellm_budget_table": {"connect": {"budget_id": "member-b"}}
+    }
+
+
 def test_team_member_update_request_temp_budget_fields_must_be_set_together() -> None:
     with pytest.raises(ValidationError, match="temp_budget_increase and temp_budget_expiry must be set together"):
         TeamMemberUpdateRequest(team_id="team-1", user_id="user-1", temp_budget_increase=50.0)

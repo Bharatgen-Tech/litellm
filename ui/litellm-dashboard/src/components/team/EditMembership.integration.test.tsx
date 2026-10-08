@@ -104,6 +104,36 @@ describe("EditMembership submit payload", () => {
     });
   });
 
+  it("seeds the per-model budget editor from the member's stored budget and submits the edited cap", async () => {
+    const modelBudgetConfig = {
+      ...teamMemberConfig,
+      additionalFields: [
+        ...additionalFields,
+        {
+          name: "model_max_budget",
+          label: "Per-Model Budgets",
+          type: "model-max-budget" as const,
+          availableModels: ["gpt-4o"],
+          premiumUser: true,
+        },
+      ],
+    };
+    renderEdit(modelBudgetConfig, {
+      user_id: "u1",
+      user_email: "a@b.com",
+      role: "user",
+      model_max_budget: { "gpt-4o": { max_budget: 5, budget_duration: "30d" } },
+    });
+
+    const cap = await screen.findByPlaceholderText("Max spend ($)");
+    expect(cap).toHaveValue(5);
+    fireEvent.change(cap, { target: { value: "9" } });
+    save();
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
+    expect(submitted().model_max_budget).toStrictEqual({ "gpt-4o": { budget_limit: 9, time_period: "30d" } });
+  });
+
   it("omits a field the config hides even when the member record carries it", async () => {
     renderEdit({ ...orgMemberConfig, showUserId: false }, { user_id: "u1", user_email: "a@b.com", role: "admin" });
 

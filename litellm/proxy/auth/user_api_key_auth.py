@@ -3193,6 +3193,7 @@ async def _load_team_member_default_model_budget(
             and membership.budget_id is not None
             and membership.budget_id != team_member_budget_id
             and isinstance(member_budget_value, Mapping)
+            and member_budget_value
         ):
             user_api_key_auth_obj.team_member_model_max_budget = (  # rebind-ok: auth context carries member budget downstream
                 member_budget_value

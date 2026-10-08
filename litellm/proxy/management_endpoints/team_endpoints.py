@@ -3887,6 +3887,7 @@ async def team_member_update(
         )
 
     validate_budget_duration(data.budget_duration)
+    validate_team_model_max_budget(data.model_max_budget, premium_user=premium_user)
 
     _existing_team_row: Final = await _team_db(prisma_client).find_unique(where={"team_id": data.team_id})
 
@@ -4003,6 +4004,7 @@ async def team_member_update(
         allowed_models=data.allowed_models,
         temp_budget_increase=data.temp_budget_increase,
         temp_budget_expiry=data.temp_budget_expiry,
+        model_max_budget=data.model_max_budget,
     )
 
 

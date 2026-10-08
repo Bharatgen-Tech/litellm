@@ -92,6 +92,13 @@ export function ModelMaxBudgetEditor({
 }: ModelMaxBudgetEditorProps) {
   const [entries, setEntries] = useState<ModelBudgetEntry[]>(() => modelMaxBudgetToEntries(value));
 
+  const incoming = JSON.stringify(value ?? {});
+  const [syncedValue, setSyncedValue] = useState(incoming);
+  if (incoming !== syncedValue) {
+    setSyncedValue(incoming);
+    if (incoming !== JSON.stringify(entriesToModelMaxBudget(entries))) setEntries(modelMaxBudgetToEntries(value));
+  }
+
   const emitChange = (updated: ModelBudgetEntry[]) => {
     setEntries(updated);
     onChange(entriesToModelMaxBudget(updated));

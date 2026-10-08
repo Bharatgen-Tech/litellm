@@ -5184,14 +5184,16 @@ async def test_member_model_budget_load_overall_only_override_keeps_default_caps
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("cleared_member_caps", [None, {}], ids=["null", "empty"])
 async def test_member_model_budget_load_falls_back_when_override_has_no_model_caps(
     monkeypatch: pytest.MonkeyPatch,
+    cleared_member_caps: dict[str, object] | None,
 ) -> None:
     token, team_object, prisma_client, user_api_key_cache = _team_member_model_budget_load_inputs()
     default_caps: Final = {"claude-sonnet-4-6": {"max_budget": 3.0, "budget_duration": "1d"}}
     membership: Final = SimpleNamespace(
         budget_id="member-budget",
-        litellm_budget_table=LiteLLM_BudgetTable(budget_id="member-budget", model_max_budget=None),
+        litellm_budget_table=LiteLLM_BudgetTable(budget_id="member-budget", model_max_budget=cleared_member_caps),
     )
     default_budget: Final = LiteLLM_BudgetTable(budget_id="default-budget", model_max_budget=default_caps)
     monkeypatch.setattr(

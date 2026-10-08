@@ -1,3 +1,4 @@
+import json
 import math
 from collections.abc import Mapping
 from types import MappingProxyType
@@ -557,12 +558,22 @@ MEMBER_BUDGET_PATCH_FIELDS: Final = MappingProxyType(
         "allowed_models": "allowed_models",
         "temp_budget_increase": "temp_budget_increase",
         "temp_budget_expiry": "temp_budget_expiry",
+        "model_max_budget": "model_max_budget",
     }
 )
 
 
-def _prisma_value(value: object) -> object:
+_JSON_BUDGET_COLUMNS: Final = frozenset({"model_max_budget"})
+
+
+def _prisma_value(column: str, value: object) -> object:
+    if column in _JSON_BUDGET_COLUMNS:
+        return json.dumps(value if value is not None else {})
     return list(value) if isinstance(value, tuple) else value
+
+
+def _prisma_payload(data: Mapping[str, object]) -> dict[str, object]:
+    return {column: _prisma_value(column, value) for column, value in data.items()}
 
 
 def member_budget_patch(source: BaseModel) -> Mapping[str, object]:
@@ -571,7 +582,7 @@ def member_budget_patch(source: BaseModel) -> Mapping[str, object]:
     field is left untouched)."""
     provided: Final = source.model_dump(exclude_unset=True)
     return {
-        column: _prisma_value(provided[request_field])
+        column: provided[request_field]
         for request_field, column in MEMBER_BUDGET_PATCH_FIELDS.items()
         if request_field in provided
     }
@@ -580,7 +591,7 @@ def member_budget_patch(source: BaseModel) -> Mapping[str, object]:
 def _is_set_budget_value(value: object) -> bool:
     if value is None:
         return False
-    if isinstance(value, list) and len(value) == 0:
+    if isinstance(value, (list, dict)) and len(value) == 0:
         return False
     return True
 
@@ -652,7 +663,7 @@ async def upsert_budget_and_membership(
             return
         await tx.litellm_budgettable.update(
             where={"budget_id": existing_budget_id},
-            data={"updated_by": user_api_key_dict.user_id or "", **write_data},
+            data={"updated_by": user_api_key_dict.user_id or "", **_prisma_payload(write_data)},
         )
         return
 
@@ -685,7 +696,7 @@ async def upsert_budget_and_membership(
         return
 
     new_budget: Final = await tx.litellm_budgettable.create(
-        data=create_data,
+        data=_prisma_payload(create_data),
         include={"team_membership": True},
     )
     await tx.litellm_teammembership.upsert(
