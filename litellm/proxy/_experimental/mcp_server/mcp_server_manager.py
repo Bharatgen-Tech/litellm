@@ -98,6 +98,7 @@ from litellm.proxy._experimental.mcp_server.faults.list_outcomes import (
     upstream_auth_challenge,
     upstream_insufficient_scope,
 )
+from litellm.proxy._experimental.mcp_server.legacy_callbacks import get_scope_response
 from litellm.proxy._experimental.mcp_server.mcp_debug import describe_upstream_http_failure, record_auth_resolution
 from litellm.proxy._experimental.mcp_server.oauth2_token_cache import (
     MCPPerUserTokenCache,
@@ -6753,6 +6754,15 @@ class MCPServerManager:
                 guardrail_context=guardrail_context,
             )
             tasks.append(during_hook_task)
+
+        scope_response: Final = get_scope_response()
+        if scope_response is not None and not (
+            mcp_server.is_gateway_managed_oauth2
+            and mcp_server.needs_user_oauth_token
+            and not mcp_server.spec_path
+            and mcp_server.transport in (MCPTransport.http, MCPTransport.sse)
+        ):
+            scope_response.allow()
 
         caller_oauth2_headers: Final = oauth2_headers
         oauth2_headers = await self._resolve_oauth2_headers_for_tool_call(mcp_server, oauth2_headers, user_api_key_auth)
