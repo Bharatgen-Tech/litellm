@@ -1,3 +1,4 @@
+import asyncio
 from typing import Final
 
 import pytest
@@ -45,3 +46,29 @@ def test_deployment_hashes_are_stable_per_install_and_differ_across_installs() -
     assert deployment_hasher("install-a")("model-1") == deployment_hasher("install-a")("model-1")
     assert deployment_hasher("install-a")("model-1") != deployment_hasher("install-b")("model-1")
     assert "model-1" not in deployment_hasher("install-a")("model-1")
+
+
+@pytest.mark.asyncio
+async def test_stop_waits_for_in_flight_request_finalizers_before_the_last_flush() -> None:
+    runtime: Final = TelemetryRuntime()
+    runtime.start(
+        litellm_version="1.0.0",
+        settings=TelemetrySettings(level="basic", endpoint="http://127.0.0.1:9", flush_interval_seconds=3600),
+        register=lambda _logger: None,
+    )
+    finished: Final[list[bool]] = []  # mutable-ok: records that the finalizer ran to completion
+
+    async def _finalizer() -> None:
+        await asyncio.sleep(0.01)
+        finished.append(True)
+
+    runtime.spawn(_finalizer())
+    await runtime.stop()
+    assert finished == [True]
+
+
+@pytest.mark.asyncio
+async def test_stopping_a_runtime_that_never_started_is_a_no_op() -> None:
+    runtime: Final = TelemetryRuntime()
+    await runtime.stop()
+    assert runtime.sink is None
