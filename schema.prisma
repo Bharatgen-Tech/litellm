@@ -2002,3 +2002,17 @@ model LiteLLM_LensTraceSignal {
 
   @@id([trace_id, trace_ref])
 }
+
+// Aggregated telemetry windows kept on the proxy when no telemetry endpoint is
+// configured, so air-gapped installs can export them by hand. One row per flush
+// window per worker, pruned after LITELLM_TELEMETRY_RETENTION_DAYS.
+model LiteLLM_TelemetryReport {
+  id           String   @id
+  window_start Float
+  window_end   Float
+  report       Json
+  created_at   DateTime @default(now())
+
+  @@index([window_end])
+  @@index([created_at])
+}

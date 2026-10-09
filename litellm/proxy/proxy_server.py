@@ -752,6 +752,7 @@ from litellm.proxy.spend_tracking.spend_event_producer import (
     SpendEventProducer,
     build_spend_event_producer,
 )
+from litellm.proxy.telemetry.endpoints import router as telemetry_router
 from litellm.proxy.telemetry.middleware import TelemetryMiddleware
 from litellm.proxy.telemetry.runtime import TelemetryRuntime, TelemetrySettings
 
@@ -1734,9 +1735,10 @@ async def proxy_startup_event(app: FastAPI) -> AsyncGenerator[ProxyLifespanState
             else ()
         )
 
-        telemetry_runtime.start(
+        await telemetry_runtime.start(
             litellm_version=version,
             settings=TelemetrySettings(),
+            db=prisma_client.db if prisma_client is not None else None,
             register=litellm.logging_callback_manager.add_litellm_callback,
         )
         try:
@@ -20349,6 +20351,7 @@ app.include_router(cache_settings_router)
 app.include_router(coordination_redis_settings_router)
 app.include_router(user_agent_analytics_router)
 app.include_router(gateway_request_router)
+app.include_router(telemetry_router)
 app.include_router(enterprise_router)
 app.include_router(ui_discovery_endpoints_router)
 app.include_router(agent_skills_discovery_router)

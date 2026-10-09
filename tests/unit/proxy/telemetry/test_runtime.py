@@ -21,7 +21,7 @@ async def test_telemetry_stays_off_unless_a_known_level_and_an_endpoint_are_both
 ) -> None:
     registered: Final[list[TelemetryAttemptLogger]] = []  # mutable-ok: captures the register callback
     runtime: Final = TelemetryRuntime()
-    runtime.start(litellm_version="1.0.0", settings=settings, register=registered.append)
+    await runtime.start(litellm_version="1.0.0", settings=settings, db=None, register=registered.append)
     assert runtime.sink is None
     assert registered == []
 
@@ -30,9 +30,10 @@ async def test_telemetry_stays_off_unless_a_known_level_and_an_endpoint_are_both
 async def test_an_enabled_runtime_registers_the_attempt_logger_and_stops_cleanly() -> None:
     registered: Final[list[TelemetryAttemptLogger]] = []  # mutable-ok: captures the register callback
     runtime: Final = TelemetryRuntime()
-    runtime.start(
+    await runtime.start(
         litellm_version="1.0.0",
         settings=TelemetrySettings(level="BASIC", endpoint="http://127.0.0.1:9", flush_interval_seconds=3600),
+        db=None,
         register=registered.append,
     )
     assert runtime.sink is not None
