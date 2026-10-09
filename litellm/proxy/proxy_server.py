@@ -1738,7 +1738,7 @@ async def proxy_startup_event(app: FastAPI) -> AsyncGenerator[ProxyLifespanState
         await telemetry_runtime.start(
             litellm_version=version,
             settings=TelemetrySettings(),
-            db=prisma_client.db if prisma_client is not None else None,
+            db=lambda: prisma_client.db if prisma_client is not None else None,
             register=litellm.logging_callback_manager.add_litellm_callback,
         )
         try:
