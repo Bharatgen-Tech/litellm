@@ -3,7 +3,6 @@ import uuid
 from collections.abc import Awaitable
 from typing import Final, Protocol
 
-from prisma.errors import PrismaError
 from pydantic import BaseModel, ConfigDict, JsonValue, TypeAdapter
 from typing_extensions import LiteralString
 
@@ -95,6 +94,8 @@ class LocalTableExporter:
         self._store: Final = store
 
     async def export(self, report: Report) -> ExportOutcome:
+        from prisma.errors import PrismaError
+
         if not (report.requests or report.attempts or report.ui_events or report.dropped_records):
             return ExportOutcome.SENT
         try:
