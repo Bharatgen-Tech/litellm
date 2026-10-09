@@ -57,6 +57,19 @@ class _LoggedAttempt(BaseModel):
     metadata: _Metadata | None = None
 
 
+class _LoggedParams(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    proxy_rejected_before_routing: bool = False
+
+
+def _rejected_before_routing(litellm_params: object) -> bool:
+    try:
+        return _LoggedParams.model_validate(litellm_params).proxy_rejected_before_routing
+    except ValidationError:
+        return False
+
+
 def _status_code(error: _ErrorInformation | None) -> int | None:
     code: Final = error.error_code if error is not None else None
     return int(code) if code is not None and code.isdigit() else None
@@ -106,6 +119,8 @@ class TelemetryAttemptLogger(CustomLogger):
         self._hash_deployment: Final = hash_deployment
 
     def _record(self, kwargs: Mapping[str, object], *, succeeded: bool) -> None:
+        if _rejected_before_routing(kwargs.get("litellm_params")):
+            return
         try:
             logged: Final = _LoggedAttempt.model_validate(kwargs.get("standard_logging_object"))
         except ValidationError:

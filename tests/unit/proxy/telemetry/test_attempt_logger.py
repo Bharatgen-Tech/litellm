@@ -109,3 +109,24 @@ async def test_a_call_without_a_standard_logging_payload_is_skipped() -> None:
         {}, None, None, None
     )
     assert sink.attempts == ()
+
+
+@pytest.mark.asyncio
+async def test_a_proxy_side_reject_that_never_reached_a_provider_is_not_an_attempt() -> None:
+    sink: Final = _RecordingSink()
+    request: Final = RequestAccumulator()
+    token: Final = current_request.set(request)
+    try:
+        await TelemetryAttemptLogger(sink, hash_deployment=lambda model_id: model_id).async_log_failure_event(
+            {
+                "standard_logging_object": _payload({"error_code": "401"}),
+                "litellm_params": {"proxy_rejected_before_routing": True},
+            },
+            None,
+            None,
+            None,
+        )
+    finally:
+        current_request.reset(token)
+    assert sink.attempts == ()
+    assert request.observations == ()
