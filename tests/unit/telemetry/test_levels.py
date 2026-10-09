@@ -49,7 +49,9 @@ _REQUEST: Final = RequestRecord(
     header_keys=frozenset({"Anthropic-Beta", "authorization", "x-customer-secret"}),
 )
 _ATTEMPT: Final = AttemptRecord(provider="openai", provider_status=StatusClass.SUCCESS, stream=True, latency_ms=100.0)
-_INSTANCE: Final = InstanceInfo(instance_id="abc", litellm_version="1.0.0", config_keys=frozenset({"cache"}))
+_INSTANCE: Final = InstanceInfo(
+    instance_id="abc", litellm_version="1.0.0", telemetry_level=TelemetryLevel.FULL, config_keys=frozenset({"cache"})
+)
 _UI_EVENT: Final = UIEvent(page="models", action=UIAction.VIEW)
 
 
@@ -73,7 +75,7 @@ async def test_basic_strips_request_structure_config_keys_and_ui_events() -> Non
     inner: Final = _RecordingSink()
     await _send_everything(LevelGatedSink(inner, TelemetryLevel.BASIC))
     assert inner == _RecordingSink(
-        instances=(InstanceInfo(instance_id="abc", litellm_version="1.0.0"),),
+        instances=(InstanceInfo(instance_id="abc", litellm_version="1.0.0", telemetry_level=TelemetryLevel.FULL),),
         requests=(
             RequestRecord(
                 endpoint="/chat/completions", stream=True, litellm_status=StatusClass.SUCCESS, latency_total_ms=120.0

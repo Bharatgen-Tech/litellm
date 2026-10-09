@@ -10,6 +10,17 @@ from enum import Enum
 from typing import Final
 
 
+class TelemetryLevel(str, Enum):
+    OFF = "off"
+    BASIC = "basic"
+    FULL = "full"
+
+    @classmethod
+    def parse(cls, value: str | None) -> "TelemetryLevel | None":
+        normalized: Final = (value or cls.OFF.value).strip().lower()
+        return next((level for level in cls if level.value == normalized), None)
+
+
 class StatusClass(str, Enum):
     NONE = "none"
     SUCCESS = "2xx"
@@ -87,6 +98,7 @@ class BlockCounts:
 class InstanceInfo:
     instance_id: str
     litellm_version: str
+    telemetry_level: TelemetryLevel
     config_keys: frozenset[str] = frozenset()
 
 

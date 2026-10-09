@@ -1,5 +1,4 @@
 import dataclasses
-from enum import Enum
 from typing import Final
 
 from litellm.telemetry.records import (
@@ -8,21 +7,10 @@ from litellm.telemetry.records import (
     AttemptRecord,
     InstanceInfo,
     RequestRecord,
+    TelemetryLevel,
     UIEvent,
 )
 from litellm.telemetry.sink import TelemetrySink
-
-
-class TelemetryLevel(str, Enum):
-    OFF = "off"
-    BASIC = "basic"
-    FULL = "full"
-
-    @classmethod
-    def parse(cls, value: str | None) -> "TelemetryLevel | None":
-        normalized: Final = (value or cls.OFF.value).strip().lower()
-        return next((level for level in cls if level.value == normalized), None)
-
 
 _NO_KEYS: Final[frozenset[str]] = frozenset()
 _OTHER_KEYS: Final[frozenset[str]] = frozenset({OTHER_HEADER_KEY})
