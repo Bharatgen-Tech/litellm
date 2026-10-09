@@ -81,7 +81,7 @@ async def test_without_an_endpoint_the_runtime_keeps_reports_locally_under_the_p
     await runtime.start(
         litellm_version="1.0.0",
         settings=TelemetrySettings(level="basic", flush_interval_seconds=3600),
-        db=db,
+        db=lambda: db,
         register=registered.append,
     )
     assert runtime.store is not None

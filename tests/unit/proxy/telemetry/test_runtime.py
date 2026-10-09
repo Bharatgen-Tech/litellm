@@ -22,7 +22,7 @@ async def test_telemetry_stays_off_unless_a_known_level_and_an_endpoint_are_both
 ) -> None:
     registered: Final[list[TelemetryAttemptLogger]] = []  # mutable-ok: captures the register callback
     runtime: Final = TelemetryRuntime()
-    await runtime.start(litellm_version="1.0.0", settings=settings, db=None, register=registered.append)
+    await runtime.start(litellm_version="1.0.0", settings=settings, db=lambda: None, register=registered.append)
     assert runtime.sink is None
     assert registered == []
 
@@ -34,7 +34,7 @@ async def test_an_enabled_runtime_registers_the_attempt_logger_and_stops_cleanly
     await runtime.start(
         litellm_version="1.0.0",
         settings=TelemetrySettings(level="BASIC", endpoint="http://127.0.0.1:9", flush_interval_seconds=3600),
-        db=None,
+        db=lambda: None,
         register=registered.append,
     )
     assert runtime.sink is not None
@@ -55,7 +55,7 @@ async def test_stop_waits_for_in_flight_request_finalizers_before_the_last_flush
     await runtime.start(
         litellm_version="1.0.0",
         settings=TelemetrySettings(level="basic", endpoint="http://127.0.0.1:9", flush_interval_seconds=3600),
-        db=None,
+        db=lambda: None,
         register=lambda _logger: None,
     )
     finished: Final[list[bool]] = []  # mutable-ok: records that the finalizer ran to completion

@@ -70,7 +70,7 @@ class TelemetryRuntime:
         *,
         litellm_version: str,
         settings: TelemetrySettings,
-        db: Database | None,
+        db: Callable[[], Database | None],
         register: Callable[[TelemetryAttemptLogger], None],
     ) -> None:
         level: Final = TelemetryLevel.parse(settings.level)
@@ -81,7 +81,8 @@ class TelemetryRuntime:
             return
         if level is TelemetryLevel.OFF:
             return
-        store: Final = TelemetryStore(db, settings.retention_days) if db is not None else None
+        database: Final = db()
+        store: Final = TelemetryStore(database, settings.retention_days) if database is not None else None
         if settings.endpoint is None and store is None:
             verbose_proxy_logger.warning(
                 "telemetry: LITELLM_TELEMETRY_LEVEL is set but there is no LITELLM_TELEMETRY_ENDPOINT or database"
