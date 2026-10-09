@@ -8,7 +8,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from litellm.proxy._types import LitellmUserRoles, UserAPIKeyAuth
+from litellm.proxy._types import CommonProxyErrors, LitellmUserRoles, UserAPIKeyAuth
 from litellm.proxy.auth.user_api_key_auth import user_api_key_auth
 from litellm.proxy.telemetry.endpoints import router, telemetry_store
 from litellm.proxy.telemetry.store import TelemetryStore
@@ -74,3 +74,16 @@ def test_non_admin_roles_cannot_export_reports(role: LitellmUserRoles) -> None:
 def test_exporting_without_a_local_store_is_an_error() -> None:
     response: Final = _client(LitellmUserRoles.PROXY_ADMIN, None).get("/telemetry/reports")
     assert response.status_code == 500, response.text
+
+
+def test_the_proxy_app_serves_the_export_route_from_its_own_telemetry_runtime() -> None:
+    from litellm.proxy.proxy_server import app, telemetry_runtime
+
+    assert telemetry_runtime.store is None
+    app.dependency_overrides[user_api_key_auth] = lambda: UserAPIKeyAuth(user_role=LitellmUserRoles.PROXY_ADMIN)
+    try:
+        response: Final = TestClient(app).get("/telemetry/reports")
+    finally:
+        _ = app.dependency_overrides.pop(user_api_key_auth)
+    assert response.status_code == 500, response.text
+    assert response.json() == {"detail": CommonProxyErrors.db_not_connected_error.value}
