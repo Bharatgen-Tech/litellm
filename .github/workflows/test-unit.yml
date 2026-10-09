@@ -487,6 +487,7 @@ jobs:
               tests/unit/repositories
               tests/unit/sandbox
               tests/unit/skills/test_skills_main.py
+              tests/unit/telemetry
               tests/unit/tracing
               tests/proxy_behavior/lens/test_connection.py
             workers: 2
