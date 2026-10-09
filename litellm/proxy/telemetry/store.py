@@ -1,10 +1,11 @@
 import json
 import uuid
 from collections.abc import Awaitable
-from typing import Final, LiteralString, Protocol
+from typing import Final, Protocol
 
 from prisma.errors import PrismaError
 from pydantic import BaseModel, ConfigDict, JsonValue, TypeAdapter
+from typing_extensions import LiteralString
 
 from litellm._logging import verbose_proxy_logger
 from litellm.telemetry.report import Report, report_to_json
