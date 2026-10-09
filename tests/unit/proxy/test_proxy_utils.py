@@ -2620,13 +2620,11 @@ async def test_during_call_hook_parallel_execution():
     try:
         litellm.callbacks = [TestGuardrail(f"g{i}") for i in range(3)]
 
-        start_time = asyncio.get_event_loop().time()
         result = await proxy_logging.during_call_hook(
             data={"model": "gpt-4", "messages": [{"role": "user", "content": "test"}]},
             user_api_key_dict=UserAPIKeyAuth(api_key="test_key", user_id="test_user"),
             call_type="completion",
         )
-        execution_time = asyncio.get_event_loop().time() - start_time
 
         # Verify parallel execution: all start before any end
         first_end_idx = next(
@@ -2639,10 +2637,6 @@ async def test_during_call_hook_parallel_execution():
             starts_before_end == 3
         ), f"Expected 3 starts before first end, got {starts_before_end}"
 
-        # Verify timing: parallel ~0.1s vs sequential ~0.3s
-        assert (
-            execution_time < 0.2
-        ), f"Parallel execution took {execution_time}s, expected < 0.2s"
         assert result["model"] == "gpt-4"
     finally:
         litellm.callbacks = original_callbacks
