@@ -8,7 +8,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from litellm.proxy._types import LitellmUserRoles, UserAPIKeyAuth
+from litellm.proxy._types import CommonProxyErrors, LitellmUserRoles, UserAPIKeyAuth
 from litellm.proxy.auth.user_api_key_auth import user_api_key_auth
 from litellm.proxy.telemetry.endpoints import router, telemetry_sink, telemetry_store
 from litellm.proxy.telemetry.store import TelemetryStore
@@ -138,4 +138,29 @@ def test_ui_events_are_accepted_and_dropped_while_telemetry_is_off() -> None:
     response: Final = _ui_client(LitellmUserRoles.PROXY_ADMIN, None).post(
         "/telemetry/ui_events", json={"page": "teams", "action": "view"}
     )
+    assert response.status_code == 204, response.text
+
+
+def test_the_proxy_app_serves_the_export_route_from_its_own_telemetry_runtime() -> None:
+    from litellm.proxy.proxy_server import app, telemetry_runtime
+
+    assert telemetry_runtime.store is None
+    app.dependency_overrides[user_api_key_auth] = lambda: UserAPIKeyAuth(user_role=LitellmUserRoles.PROXY_ADMIN)
+    try:
+        response: Final = TestClient(app).get("/telemetry/reports")
+    finally:
+        _ = app.dependency_overrides.pop(user_api_key_auth)
+    assert response.status_code == 500, response.text
+    assert response.json() == {"detail": CommonProxyErrors.db_not_connected_error.value}
+
+
+def test_the_proxy_app_accepts_ui_events_while_its_telemetry_runtime_is_off() -> None:
+    from litellm.proxy.proxy_server import app, telemetry_runtime
+
+    assert telemetry_runtime.sink is None
+    app.dependency_overrides[user_api_key_auth] = lambda: UserAPIKeyAuth(user_role=LitellmUserRoles.INTERNAL_USER)
+    try:
+        response: Final = TestClient(app).post("/telemetry/ui_events", json={"page": "teams", "action": "view"})
+    finally:
+        _ = app.dependency_overrides.pop(user_api_key_auth)
     assert response.status_code == 204, response.text
