@@ -110,6 +110,10 @@ def _measure_peak(fn) -> int:
     return peak
 
 
+def _quietest_peak(fn) -> int:
+    return min(_measure_peak(fn) for _ in range(3))
+
+
 class TestStreamingOutputParity:
     def test_transform_create_file_request_returns_streaming_body_parity(self):
         cfg = VertexAIFilesConfig()
@@ -281,8 +285,8 @@ class TestStreamingPeakMemory:
             for _ in _OpenAIToVertexBatchUploadStream(raw, cfg._map_openai_to_vertex_params).iter_bytes():
                 pass
 
-        streaming_peak = _measure_peak(drain_stream)
-        list_peak = _measure_peak(lambda: _reference_vertex_jsonl_string(cfg, content_str))
+        streaming_peak = _quietest_peak(drain_stream)
+        list_peak = _quietest_peak(lambda: _reference_vertex_jsonl_string(cfg, content_str))
 
         # Core guard: the lazily consumed streaming body peaks well under a list
         # pipeline that materializes every transformed row. Building full
@@ -368,8 +372,8 @@ class TestPathSourcedStreaming:
             for _ in _upload_stream(out).iter_bytes():
                 pass
 
-        streaming_peak = _measure_peak(drain_stream)
-        list_peak = _measure_peak(lambda: _reference_vertex_jsonl_string(cfg, content_str))
+        streaming_peak = _quietest_peak(drain_stream)
+        list_peak = _quietest_peak(lambda: _reference_vertex_jsonl_string(cfg, content_str))
 
         assert streaming_peak < list_peak * 0.3, (
             f"path-sourced streaming peak {streaming_peak} not a clear win over list pipeline "
