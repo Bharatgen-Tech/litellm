@@ -1,11 +1,13 @@
 from typing import Annotated, Final
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from litellm.proxy._types import CommonProxyErrors, LitellmUserRoles, UserAPIKeyAuth
 from litellm.proxy.auth.user_api_key_auth import user_api_key_auth
 from litellm.proxy.telemetry.store import StoredReport, TelemetryStore
+from litellm.telemetry.records import UIAction, UIEvent
+from litellm.telemetry.sink import TelemetrySink
 
 router: Final = APIRouter()
 
@@ -18,10 +20,36 @@ class TelemetryReportsResponse(BaseModel):
     next_after_id: str | None
 
 
+class UIEventBody(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    page: str = Field(pattern=r"^[a-z0-9][a-z0-9_-]{0,63}$")
+    action: UIAction
+    target: str | None = Field(default=None, pattern=r"^[a-z0-9][a-z0-9_=:-]{0,127}$")
+
+
 def telemetry_store() -> TelemetryStore | None:
     from litellm.proxy.proxy_server import telemetry_runtime
 
     return telemetry_runtime.store
+
+
+def telemetry_sink() -> TelemetrySink | None:
+    from litellm.proxy.proxy_server import telemetry_runtime
+
+    return telemetry_runtime.sink
+
+
+@router.post("/telemetry/ui_events", tags=["Telemetry"], status_code=204)
+async def record_ui_event(
+    body: UIEventBody,
+    _user_api_key_dict: Annotated[UserAPIKeyAuth, Depends(user_api_key_auth)],
+    sink: Annotated[TelemetrySink | None, Depends(telemetry_sink)],
+) -> None:
+    """One Admin UI navigation event (route segment, action, allowlisted target), folded into the same telemetry
+    report as proxy traffic. Dropped unless telemetry is on at the ``full`` level"""
+    if sink is not None:
+        sink.record_ui_event(UIEvent(page=body.page, action=body.action, target=body.target))
 
 
 @router.get("/telemetry/reports", tags=["Telemetry"], response_model=TelemetryReportsResponse)

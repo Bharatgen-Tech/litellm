@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import { useMediaQuery } from "usehooks-ts";
 import { CommandPaletteProvider } from "@/components/CommandPalette/CommandPaletteProvider";
+import { recordUiEvent } from "@/lib/telemetry/uiEvents";
 
 const pluginApiClient = createApiClient({ getBaseUrl: () => getProxyBaseUrl() ?? "" });
 
@@ -111,6 +112,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const { mode } = usePluginMode();
   const pathname = usePathname();
   const routeSegment = routeSegmentForPathname(pathname);
+  useEffect(() => {
+    recordUiEvent({ page: routeSegment || "home", action: "view" });
+  }, [routeSegment]);
   const searchParams = useSearchParams();
   const navigationKey = `${pathname}?${searchParams.toString()}`;
   const isDesktop = useMediaQuery("(min-width: 768px)", { initializeWithValue: false });
