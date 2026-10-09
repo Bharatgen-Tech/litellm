@@ -52,9 +52,10 @@ def test_deployment_hashes_are_stable_per_install_and_differ_across_installs() -
 @pytest.mark.asyncio
 async def test_stop_waits_for_in_flight_request_finalizers_before_the_last_flush() -> None:
     runtime: Final = TelemetryRuntime()
-    runtime.start(
+    await runtime.start(
         litellm_version="1.0.0",
         settings=TelemetrySettings(level="basic", endpoint="http://127.0.0.1:9", flush_interval_seconds=3600),
+        db=None,
         register=lambda _logger: None,
     )
     finished: Final[list[bool]] = []  # mutable-ok: records that the finalizer ran to completion
