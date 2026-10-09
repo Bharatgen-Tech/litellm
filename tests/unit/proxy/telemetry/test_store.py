@@ -1,5 +1,7 @@
 from dataclasses import dataclass
-from typing import Final, LiteralString
+from typing import Final
+
+from typing_extensions import LiteralString
 
 import pytest
 from prisma.errors import PrismaError

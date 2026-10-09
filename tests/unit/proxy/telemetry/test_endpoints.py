@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from collections.abc import Mapping
-from typing import Final, LiteralString
+from typing import Final
+
+from typing_extensions import LiteralString
 
 import pytest
 from fastapi import FastAPI
