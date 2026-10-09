@@ -5,16 +5,19 @@ import uuid
 from collections.abc import Callable, Coroutine
 from typing import Final
 
-import httpx
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from litellm._logging import verbose_proxy_logger
+from litellm.llms.custom_httpx.http_handler import (
+    get_async_httpx_client,  # pyright: ignore[reportUnknownVariableType]  # legacy params: dict signature
+)
 from litellm.proxy.telemetry.attempt_logger import TelemetryAttemptLogger
 from litellm.telemetry.aggregate import AggregatingSink
 from litellm.telemetry.http_exporter import HttpExporter
 from litellm.telemetry.levels import LevelGatedSink
 from litellm.telemetry.records import InstanceInfo, TelemetryLevel
 from litellm.telemetry.sink import TelemetrySink
+from litellm.types.llms.custom_http import httpxSpecialProvider
 
 
 class TelemetrySettings(BaseSettings):
@@ -39,7 +42,6 @@ class TelemetryRuntime:
 
     def __init__(self) -> None:
         self.sink: TelemetrySink | None = None
-        self._client: httpx.AsyncClient | None = None
         self._flush_task: asyncio.Task[None] | None = None
         self._pending: Final[set[asyncio.Task[None]]] = set()  # mutable-ok: strong refs keep finalizers alive
 
@@ -67,11 +69,11 @@ class TelemetryRuntime:
         instance: Final = InstanceInfo(
             instance_id=uuid.uuid4().hex, litellm_version=litellm_version, telemetry_level=level
         )
-        client: Final = httpx.AsyncClient(timeout=10.0)
+        client: Final = get_async_httpx_client(httpxSpecialProvider.LoggingCallback, params={"timeout": 10.0}).client
         sink: Final = LevelGatedSink(AggregatingSink(HttpExporter(client, settings.endpoint)), level)
         sink.set_instance(instance)
         register(TelemetryAttemptLogger(sink, deployment_hasher(instance.instance_id)))
-        self.sink, self._client = sink, client
+        self.sink = sink
         self._flush_task = asyncio.create_task(self._flush_every(sink, settings.flush_interval_seconds))
 
     @staticmethod
@@ -91,6 +93,4 @@ class TelemetryRuntime:
                 await flush_task
         await asyncio.gather(*self._pending, return_exceptions=True)
         await sink.flush()
-        if self._client is not None:
-            await self._client.aclose()
         self.sink = None
